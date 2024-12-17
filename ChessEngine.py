@@ -107,6 +107,9 @@ class GameState():
         '''
         return not ((self.board[row][col][0] == 'b' and not self.whiteToMove) or (self.board[row][col][0] == 'w' and self.whiteToMove))
 
+    def onBoard(self, row, col) -> bool:
+        return row >= 0 and row < len(self.board) and col >= 0 and col < len(self.board[row])
+
     def getPawnMoves(self, row: int, col: int, moves: list[Move]):
         '''
         Get all pawn moves at pawn location and add to moves list
@@ -206,7 +209,6 @@ class GameState():
         '''
         Get all bishop moves at bishop location and add to moves list
         '''
-
         for rowShiftInc in [-1, 1]:
             for colShiftInc in [-1, 1]:
                 rowShift = rowShiftInc
@@ -214,7 +216,7 @@ class GameState():
                 while True:
                     newRow = row + rowShift
                     newCol = col + colShift
-                    if newRow >= 0 and newRow < len(self.board) and newCol >= 0 and newCol < len(self.board[newRow]):
+                    if self.onBoard(newRow, newCol):
                         if self.board[newRow][newCol] == EMPTY:
                             moves.append(
                                 Move((row, col), (newRow, newCol), self.board))
@@ -233,7 +235,13 @@ class GameState():
         '''
         Get all king moves at king location and add to moves list
         '''
-        pass
+        for rowShift in [-1, 0, 1]:
+            for colShift in [-1, 0, 1]:
+                if not (rowShift == 0 and colShift == 0):  # not looking at curr pos
+                    newRow, newCol = row + rowShift, col + colShift
+                    if self.onBoard(newRow, newCol) and self.canCaptureSquare(newRow, newCol):
+                        moves.append(
+                            Move((row, col), (newRow, newCol), self.board))
 
     def getQueenMoves(self, row: int, col: int, moves: list[Move]):
         '''
