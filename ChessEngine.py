@@ -247,4 +247,6 @@ class GameState():
         '''
         Get all queen moves at queen location and add to moves list
         '''
-        pass
+        # rook + bishop moves
+        self.getRookMoves(row, col, moves)
+        self.getBishopMoves(row, col, moves)

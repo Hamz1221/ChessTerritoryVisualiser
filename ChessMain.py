@@ -92,16 +92,17 @@ def main() -> None:
                     sqSelected = (row, col)
                     # append both first and second clicks
                     playerClicks.append(sqSelected)
-                print(playerClicks)
                 if len(playerClicks) == 2:  # after 2nd click
                     move = ChessEngine.Move(
                         playerClicks[0], playerClicks[1], gs.board)
-                    print(move.getChessNotation())
                     if move in validMoves:
+                        print(move.getChessNotation())
                         gs.makeMove(move)
                         moveMade = True
-                    sqSelected = ()  # reset clicks
-                    playerClicks = []
+                        sqSelected = ()  # reset clicks
+                        playerClicks = []
+                    else:
+                        playerClicks = [sqSelected]
 
             # key handler
             if e.type == p.KEYDOWN:
