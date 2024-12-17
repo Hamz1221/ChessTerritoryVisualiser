@@ -62,8 +62,7 @@ def main() -> None:
     clock = p.time.Clock()
     screen.fill(p.Color("white"))
     gs = ChessEngine.GameState()
-    validMoves = gs.getValidMoves() + [
-        ChessEngine.Move((6, 4), (4, 4), gs.board)]
+    validMoves = gs.getValidMoves()
     moveMade = False
     loadImages()  # do this once, before the while loop
 

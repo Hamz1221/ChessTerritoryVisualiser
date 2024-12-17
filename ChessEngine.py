@@ -105,7 +105,29 @@ class GameState():
         '''
         Get all pawn moves at pawn location and add to moves list
         '''
-        pass
+        if self.whiteToMove:  # white pawn moves
+            # 1 square pawn advance
+            if row > 0 and self.board[row - 1][col] == EMPTY:
+                moves.append(Move((row, col), (row - 1, col), self.board))
+                # 2 square pawn advance
+                if row == 6 and self.board[row - 2][col] == EMPTY:
+                    moves.append(Move((row, col), (row - 2, col), self.board))
+            if row > 0 and col - 1 >= 0:
+                if self.board[row - 1][col - 1][0] == 'b':  # enemy piece to capture
+                    moves.append(
+                        Move((row, col), (row - 1, col - 1), self.board))
+            if row > 0 and col + 1 < len(self.board[row - 1]):
+                if self.board[row - 1][col + 1][0] == 'b':  # enemy piece to capture
+                    moves.append(
+                        Move((row, col), (row - 1, col + 1), self.board))
+
+        else:  #  black moves
+            # 1 square pawn advance
+            if row < len(self.board) - 1 and self.board[row + 1][col] == EMPTY:
+                moves.append(Move((row, col), (row + 1, col), self.board))
+                # 2 square pawn advance
+                if row == 1 and self.board[row + 2][col] == EMPTY:
+                    moves.append(Move((row, col), (row + 2, col), self.board))
 
     def getRookMoves(self, row: int, col: int, moves: list[Move]):
         '''
