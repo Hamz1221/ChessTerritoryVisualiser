@@ -1,7 +1,6 @@
 # Handle user input, display current game state
 import pygame as p
 import ChessEngine
-import numpy as np
 import Pieces
 from Pieces import *
 
@@ -45,13 +44,13 @@ def drawBoard(screen: p.Surface):
                 col * SQ_SIZE, row * SQ_SIZE, SQ_SIZE, SQ_SIZE))
 
 
-def drawPieces(screen: p.Surface, board: np.ndarray):
+def drawPieces(screen: p.Surface, board: list):
     '''
     Draw the pieces on the board using the current GameState.board
     '''
     for row in range(DIMENSION):
         for col in range(DIMENSION):
-            piece = board[row, col]
+            piece = board[row][col]
             if piece != EMPTY:
                 screen.blit(IMAGES[piece], p.Rect(
                     col * SQ_SIZE, row * SQ_SIZE, SQ_SIZE, SQ_SIZE))
@@ -63,7 +62,14 @@ def main() -> None:
     clock = p.time.Clock()
     screen.fill(p.Color("white"))
     gs = ChessEngine.GameState()
+    validMoves = gs.getValidMoves() + [
+        ChessEngine.Move((6, 4), (4, 4), gs.board)]
+    moveMade = False
     loadImages()  # do this once, before the while loop
+
+    # most recent square player clicked on (basically playerClicks[-1])
+    sqSelected = ()
+    playerClicks = []  # history of player square clicks of up to 2 records
 
     running = True
     while running:
@@ -71,6 +77,41 @@ def main() -> None:
             if e.type == p.QUIT:
                 running = False
                 # break # ?
+
+            # mouse handler
+            elif e.type == p.MOUSEBUTTONDOWN:
+                location = p.mouse.get_pos()  # (x, y)
+                col = location[0] // SQ_SIZE
+                row = location[1] // SQ_SIZE
+                if sqSelected == (row, col):
+                    # deselect
+                    sqSelected = ()
+                    playerClicks = []
+                else:
+                    sqSelected = (row, col)
+                    # append both first and second clicks
+                    playerClicks.append(sqSelected)
+
+                if len(playerClicks) == 2:  # after 2nd click
+                    move = ChessEngine.Move(
+                        playerClicks[0], playerClicks[1], gs.board)
+                    print(move.getChessNotation())
+                    if move in validMoves:
+                        gs.makeMove(move)
+                        moveMade = True
+                    sqSelected = ()  # reset clicks
+                    playerClicks = []
+
+            # key handler
+            if e.type == p.KEYDOWN:
+                if e.key == p.K_z and p.key.get_mods() & p.KMOD_META:  # `command + z` for undo
+                    gs.undoMove()
+                    moveMade = True
+
+        if moveMade:
+            validMoves = gs.getValidMoves()
+            moveMade = False
+
         drawGameState(screen, gs)
         clock.tick(MAX_FPS)
         p.display.flip()
