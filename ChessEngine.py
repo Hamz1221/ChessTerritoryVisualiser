@@ -206,7 +206,28 @@ class GameState():
         '''
         Get all bishop moves at bishop location and add to moves list
         '''
-        pass
+
+        for rowShiftInc in [-1, 1]:
+            for colShiftInc in [-1, 1]:
+                rowShift = rowShiftInc
+                colShift = colShiftInc
+                while True:
+                    newRow = row + rowShift
+                    newCol = col + colShift
+                    if newRow >= 0 and newRow < len(self.board) and newCol >= 0 and newCol < len(self.board[newRow]):
+                        if self.board[newRow][newCol] == EMPTY:
+                            moves.append(
+                                Move((row, col), (newRow, newCol), self.board))
+                        elif self.canCaptureSquare(newRow, newCol):
+                            moves.append(
+                                Move((row, col), (newRow, newCol), self.board))
+                            break  # cannot look further
+                        else:
+                            break  # hit wall or ally
+                        rowShift += rowShiftInc
+                        colShift += colShiftInc
+                    else:
+                        break  # looking off the board
 
     def getKingMoves(self, row: int, col: int, moves: list[Move]):
         '''
