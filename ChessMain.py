@@ -25,13 +25,13 @@ def drawGameState(screen: p.surface, gs: ChessEngine.GameState):
     '''
     Responsible for all the graphics within a current game state
     '''
-    drawBoard(screen)  # draw squares on board
+    drawBoard(screen, gs.whiteToMove)  # draw squares on board
     # add in piece highlighting or move suggestions [later] (code for attack visualiser goes here)
     drawPieces(screen, gs.board)  # draw pieces on top of those squares
 
 
 # Top left square is always light
-def drawBoard(screen: p.Surface):
+def drawBoard(screen: p.Surface, whiteToMove: bool):
     '''
     Draw the squares on the board
     '''
@@ -42,6 +42,8 @@ def drawBoard(screen: p.Surface):
             colour = colours[(row + col) % 2]
             p.draw.rect(screen, colour, p.Rect(
                 col * SQ_SIZE, row * SQ_SIZE, SQ_SIZE, SQ_SIZE))
+    p.draw.rect(screen, "white" if whiteToMove else "black",
+                (0, 0, WIDTH, HEIGHT), 5)
 
 
 def drawPieces(screen: p.Surface, board: list):
@@ -90,7 +92,7 @@ def main() -> None:
                     sqSelected = (row, col)
                     # append both first and second clicks
                     playerClicks.append(sqSelected)
-
+                print(playerClicks)
                 if len(playerClicks) == 2:  # after 2nd click
                     move = ChessEngine.Move(
                         playerClicks[0], playerClicks[1], gs.board)
