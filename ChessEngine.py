@@ -1,6 +1,6 @@
 # Handle and save game state, determine valid moves, move log, etc.
 import numpy as np
-from pieces import *
+from Pieces import *
 
 
 class GameState():

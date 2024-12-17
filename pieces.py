@@ -10,7 +10,7 @@ B_B = "bB"
 B_K = "bK"
 B_Q = "bQ"
 B_P = "bP"
-___ = "--"
+EMPTY = ___ = "--"
 
 __all__ = list({
     "W_R": W_R,
@@ -26,4 +26,5 @@ __all__ = list({
     "B_Q": B_Q,
     "B_P": B_P,
     "___": ___,
+    "EMPTY": EMPTY
 }.keys())
