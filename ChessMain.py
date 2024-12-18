@@ -2,7 +2,7 @@
 import pygame as p
 import ChessEngine
 import Pieces
-from Pieces import *
+from Pieces import PIECES, EMPTY
 
 
 WIDTH = HEIGHT = 512  # 512 | 400
@@ -13,36 +13,42 @@ IMAGES = {}
 
 
 def loadImages():
-    pieces = [globals()[piece]
-              for piece in Pieces.__all__ if globals()[piece] != EMPTY]
-
-    for piece in pieces:
+    for piece in PIECES:
         IMAGES[piece] = p.transform.scale(p.image.load(
             f"images/{piece}.png"), (SQ_SIZE, SQ_SIZE))
 
 
-def drawGameState(screen: p.surface, gs: ChessEngine.GameState):
+def drawGameState(screen: p.surface, gs: ChessEngine.GameState, font: p.font.Font):
     '''
     Responsible for all the graphics within a current game state
     '''
-    drawBoard(screen, gs.whiteToMove)  # draw squares on board
+    drawBoard(screen, gs.whiteToMove, gs.checkmate,
+              gs.stalemate, font)  # draw squares on board
     # add in piece highlighting or move suggestions [later] (code for attack visualiser goes here)
     drawPieces(screen, gs.board)  # draw pieces on top of those squares
 
 
 # Top left square is always light
-def drawBoard(screen: p.Surface, whiteToMove: bool):
+def drawBoard(screen: p.Surface, whiteToMove: bool, checkmate: bool, stalemate: bool, font: p.font.Font):
     '''
     Draw the squares on the board
     '''
     colours = [p.Color("white"), p.Color("dark grey")]
+    borderColour = "white" if whiteToMove else "black"
+    if stalemate:
+        borderColour = "yellow"
+    if checkmate:
+        borderColour = "green"
 
     for row in range(DIMENSION):
         for col in range(DIMENSION):
             colour = colours[(row + col) % 2]
             p.draw.rect(screen, colour, p.Rect(
                 col * SQ_SIZE, row * SQ_SIZE, SQ_SIZE, SQ_SIZE))
-    p.draw.rect(screen, "white" if whiteToMove else "black",
+            txt_surface = font.render(f"({row},{col})", False, (0, 0, 0))
+            screen.blit(txt_surface, (col * SQ_SIZE, row * SQ_SIZE))
+
+    p.draw.rect(screen, borderColour,
                 (0, 0, WIDTH, HEIGHT), 5)
 
 
@@ -60,6 +66,7 @@ def drawPieces(screen: p.Surface, board: list):
 
 def main() -> None:
     p.init()
+    font = p.font.SysFont('Comic Sans MS', 10)
     screen = p.display.set_mode((WIDTH, HEIGHT))
     clock = p.time.Clock()
     screen.fill(p.Color("white"))
@@ -114,7 +121,7 @@ def main() -> None:
             validMoves = gs.getValidMoves()
             moveMade = False
 
-        drawGameState(screen, gs)
+        drawGameState(screen, gs, font)
         clock.tick(MAX_FPS)
         p.display.flip()
 
