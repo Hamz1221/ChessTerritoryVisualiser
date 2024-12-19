@@ -5,7 +5,7 @@ import Pieces
 # from Pieces import PIECES, EMPTY, WHITE, BLACK
 
 
-WIDTH = HEIGHT = 512  # 512 | 400
+WIDTH = HEIGHT = 640  # 640 | 512 | 400
 DIMENSION = 8
 SQ_SIZE = HEIGHT // DIMENSION
 MAX_FPS = 15  # for animations
@@ -42,7 +42,7 @@ def highlightSquares(screen: p.Surface, validMoves: list[ChessEngine.Move], prot
                 p.draw.rect(screen, sq_colour, p.Rect(
                     col*SQ_SIZE, row*SQ_SIZE, SQ_SIZE, SQ_SIZE))
                 p.draw.rect(screen, "black", p.Rect(
-                    col*SQ_SIZE, row*SQ_SIZE, SQ_SIZE, SQ_SIZE), 2)
+                    col*SQ_SIZE, row*SQ_SIZE, SQ_SIZE, SQ_SIZE), 1)
         (allyColour, enemyColour) = (
             "Blue", "Red") if gs.whiteToMove else ("Red", "Blue")
         s = p.Surface((SQ_SIZE, SQ_SIZE))
@@ -66,9 +66,9 @@ def drawGameState(screen: p.Surface, validMoves: list[ChessEngine.Move], protect
     drawBoard(screen)  # draw squares on board
     # add in piece highlighting or move suggestions [later] (code for attack visualiser goes here)
     highlightSquares(screen, validMoves, protectionMoves, sqSelected)
-    drawCoords(screen)
     drawBorder(screen)
     drawPieces(screen, gs.board)  # draw pieces on top of those squares
+    drawCoords(screen)
 
 
 # Top left square is always light
@@ -86,11 +86,15 @@ def drawBoard(screen: p.Surface):
                 col * SQ_SIZE, row * SQ_SIZE, SQ_SIZE, SQ_SIZE))
 
 
-def drawCoords(screen):
-    for row in range(DIMENSION):
-        for col in range(DIMENSION):
-            txt_surface = font.render(f"({row},{col})", False, (0, 0, 0))
-            screen.blit(txt_surface, (col * SQ_SIZE, row * SQ_SIZE))
+def drawCoords(screen: p.Surface):
+    for rank in range(DIMENSION):
+        txt_surface = font.render(f"{DIMENSION - rank}", True, (0, 0, 0))
+        screen.blit(txt_surface, (7, (rank * SQ_SIZE) + 5))
+
+    for i, file in enumerate("abcdefgh"):
+        txt_surface = font.render(file, True, (0, 0, 0))
+        screen.blit(txt_surface, ((i * SQ_SIZE) + (0.85 * SQ_SIZE),
+                    (7 * SQ_SIZE) + (0.65 * SQ_SIZE)))
 
 
 def drawBorder(screen):
@@ -120,7 +124,7 @@ def main() -> None:
     global font
     global gs
     p.init()
-    font = p.font.SysFont('Comic Sans MS', 10)
+    font = p.font.SysFont('Comic Sans MS', 15)
     screen = p.display.set_mode((WIDTH, HEIGHT))
     clock = p.time.Clock()
     screen.fill(p.Color("white"))

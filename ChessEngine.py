@@ -313,6 +313,7 @@ class GameState():
             if len(self.checks) == 1:  # only 1 check, move king or block/capture
                 print("only one check, move king or block/capture")
                 moves, _ = self.getAllPossibleMoves()
+                protectionMoves = moves
                 # to block a check you must move a piece into one of the squares between the enemy piece and king
                 checkRow, checkCol, checkDirV, checkDirH = self.checks[0]
                 # enemy piece causing check
@@ -339,6 +340,7 @@ class GameState():
             else:  # double check, king has to move
                 print("Double check!")
                 self.getKingMoves(kingRow, kingCol, moves, [])
+                protectionMoves = moves
         else:  #  not in check, all moves are fine
             moves, protectionMoves = self.getAllPossibleMoves()
 
@@ -437,24 +439,25 @@ class GameState():
                 if self.board[row + moveAmount][col - 1][0] == enemyColour:
                     moves.append(
                         Move((row, col), (row + moveAmount, col - 1), self.board, pawnPromotion=pawnPromotion))
-                else:
-                    protectionMoves.append(
-                        Move((row, col), (row + moveAmount, col - 1), self.board, pawnPromotion=pawnPromotion))
+
                 if (row + moveAmount, col - 1) == self.enPassantPossible:
                     moves.append(
                         Move((row, col), (row + moveAmount, col - 1), self.board, enPassant=True))
+
+                protectionMoves.append(
+                    Move((row, col), (row + moveAmount, col - 1), self.board, pawnPromotion=pawnPromotion))
 
         if col + 1 <= 7:
             if not piecePinned or pinDirection == (moveAmount, 1):
                 if self.board[row + moveAmount][col + 1][0] == enemyColour:
                     moves.append(
                         Move((row, col), (row + moveAmount, col + 1), self.board, pawnPromotion=pawnPromotion))
-                else:
-                    protectionMoves.append(
-                        Move((row, col), (row + moveAmount, col + 1), self.board, pawnPromotion=pawnPromotion))
                 if (row + moveAmount, col + 1) == self.enPassantPossible:
                     moves.append(
                         Move((row, col), (row + moveAmount, col + 1), self.board, enPassant=True))
+
+                protectionMoves.append(
+                    Move((row, col), (row + moveAmount, col + 1), self.board, pawnPromotion=pawnPromotion))
 
     def getRookMoves(self, row: int, col: int, moves: list[Move], protectionMoves: list[Move]):
         '''
