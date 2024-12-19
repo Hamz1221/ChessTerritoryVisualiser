@@ -121,6 +121,8 @@ def main() -> None:
         if moveMade:
             validMoves = gs.getValidMoves()
             moveMade = False
+            print(gs.castleRightsUpdates)
+            print(gs.currentCastleRights)
 
         drawGameState(screen, gs, font)
         clock.tick(MAX_FPS)
