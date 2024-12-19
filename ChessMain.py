@@ -197,11 +197,27 @@ def animateMove(moveLog: list[ChessEngine.Move], screen: p.Surface, board: list[
         startRow, startCol, endRow, endCol = move.endRow, move.endCol, move.startRow, move.startCol
     dR = endRow - startRow
     dC = endCol - startCol
+
+    if move.isCastle:
+        rook_dR = 0
+        if dC == 2:  # king side castle
+            rook_dC = -2 if not undoMove else -3
+            rook_startCol = 7 if not undoMove else 3
+            rook_endCol = 5 if not undoMove else 0
+        else:
+            rook_dC = 3 if not undoMove else 2
+            rook_startCol = 0 if not undoMove else 5
+            rook_endCol = 3 if not undoMove else 7
+
     framesPerMove = 10
 
     for frame in range(framesPerMove + 1):
         row, col = (startRow + (dR * frame/framesPerMove),
                     startCol + (dC * frame/framesPerMove))
+
+        if move.isCastle:
+            rookRow, rookCol = (endRow + (rook_dR * frame/framesPerMove),
+                                rook_startCol + (rook_dC * frame/framesPerMove))
 
         drawBoard(screen)
         drawPieces(screen, board)
@@ -211,6 +227,13 @@ def animateMove(moveLog: list[ChessEngine.Move], screen: p.Surface, board: list[
         endSquare = p.Rect(endCol*SQ_SIZE,
                            endRow*SQ_SIZE, SQ_SIZE, SQ_SIZE)
         p.draw.rect(screen, colour, endSquare)
+
+        if move.isCastle:
+            colour = colours[(endRow + endCol + (0 if dC >
+                              0 and undoMove else 1)) % 2]
+            endSquare = p.Rect(rook_endCol*SQ_SIZE,
+                               endRow*SQ_SIZE, SQ_SIZE, SQ_SIZE)
+            p.draw.rect(screen, colour, endSquare)
 
         # draw captured piece onto rectangle
         if not undoMove and move.pieceCaptured != Pieces.EMPTY:
@@ -222,6 +245,9 @@ def animateMove(moveLog: list[ChessEngine.Move], screen: p.Surface, board: list[
         # draw moving piece
         screen.blit(IMAGES[move.pieceMoved], p.Rect(
             col*SQ_SIZE, row*SQ_SIZE, SQ_SIZE, SQ_SIZE))
+        if move.isCastle:
+            screen.blit(IMAGES[move.pieceMoved[0]+Pieces.ROOK], p.Rect(
+                rookCol*SQ_SIZE, rookRow*SQ_SIZE, SQ_SIZE, SQ_SIZE))
         p.display.flip()
         clock.tick(60)
 
