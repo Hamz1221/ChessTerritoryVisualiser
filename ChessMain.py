@@ -2,7 +2,7 @@
 import pygame as p
 import ChessEngine
 import Pieces
-from Pieces import PIECES, EMPTY
+# from Pieces import PIECES, EMPTY, WHITE, BLACK
 
 
 WIDTH = HEIGHT = 512  # 512 | 400
@@ -13,40 +13,70 @@ IMAGES = {}
 
 
 def loadImages():
-    for piece in PIECES:
+    for piece in Pieces.PIECES:
         IMAGES[piece] = p.transform.scale(p.image.load(
             f"images/{piece}.png"), (SQ_SIZE, SQ_SIZE))
 
 
-def drawGameState(screen: p.surface, gs: ChessEngine.GameState, font: p.font.Font):
+def highlightSquares(screen: p.Surface, validMoves: list[ChessEngine.Move], sqSelected: ChessEngine.Square):
+    if sqSelected != ():
+        row, col = sqSelected
+
+        # sqSelected is a piece that can be moved
+        if gs.board[row][col][0] == (Pieces.WHITE if gs.whiteToMove else Pieces.BLACK):
+            #  highlight selected square
+            s = p.Surface((SQ_SIZE, SQ_SIZE))
+            s.set_alpha(100)  # transparency value -> 0 transparent; 255 opaque
+            s.fill(p.Color("blue"))
+            screen.blit(s, (col * SQ_SIZE, row * SQ_SIZE))
+            # highlight moves from that square
+            s.fill(p.Color("yellow"))
+            for move in validMoves:
+                if move.startRow == row and move.startCol == col:
+                    screen.blit(
+                        s, (move.endCol * SQ_SIZE, move.endRow * SQ_SIZE))
+
+
+def drawGameState(screen: p.Surface, validMoves: list[ChessEngine.Move], sqSelected: ChessEngine.Square):
     '''
     Responsible for all the graphics within a current game state
     '''
-    drawBoard(screen, gs.whiteToMove, gs.checkmate,
-              gs.stalemate, font)  # draw squares on board
+    drawBoard(screen)  # draw squares on board
+    drawCoords(screen)
+    drawBorder(screen)
     # add in piece highlighting or move suggestions [later] (code for attack visualiser goes here)
+    highlightSquares(screen, validMoves, sqSelected)
     drawPieces(screen, gs.board)  # draw pieces on top of those squares
 
 
 # Top left square is always light
-def drawBoard(screen: p.Surface, whiteToMove: bool, checkmate: bool, stalemate: bool, font: p.font.Font):
+def drawBoard(screen: p.Surface):
     '''
     Draw the squares on the board
     '''
+    global colours
     colours = [p.Color("white"), p.Color("dark grey")]
-    borderColour = "white" if whiteToMove else "black"
-    if stalemate:
-        borderColour = "yellow"
-    if checkmate:
-        borderColour = "green"
 
     for row in range(DIMENSION):
         for col in range(DIMENSION):
             colour = colours[(row + col) % 2]
             p.draw.rect(screen, colour, p.Rect(
                 col * SQ_SIZE, row * SQ_SIZE, SQ_SIZE, SQ_SIZE))
+
+
+def drawCoords(screen):
+    for row in range(DIMENSION):
+        for col in range(DIMENSION):
             txt_surface = font.render(f"({row},{col})", False, (0, 0, 0))
             screen.blit(txt_surface, (col * SQ_SIZE, row * SQ_SIZE))
+
+
+def drawBorder(screen):
+    borderColour = "white" if gs.whiteToMove else "black"
+    if gs.stalemate:
+        borderColour = "yellow"
+    if gs.checkmate:
+        borderColour = "green"
 
     p.draw.rect(screen, borderColour,
                 (0, 0, WIDTH, HEIGHT), 5)
@@ -59,12 +89,14 @@ def drawPieces(screen: p.Surface, board: list):
     for row in range(DIMENSION):
         for col in range(DIMENSION):
             piece = board[row][col]
-            if piece != EMPTY:
+            if piece != Pieces.EMPTY:
                 screen.blit(IMAGES[piece], p.Rect(
                     col * SQ_SIZE, row * SQ_SIZE, SQ_SIZE, SQ_SIZE))
 
 
 def main() -> None:
+    global font
+    global gs
     p.init()
     font = p.font.SysFont('Comic Sans MS', 10)
     screen = p.display.set_mode((WIDTH, HEIGHT))
@@ -73,6 +105,7 @@ def main() -> None:
     gs = ChessEngine.GameState()
     validMoves = gs.getValidMoves()
     moveMade = False
+    animate = False
     loadImages()  # do this once, before the while loop
 
     # most recent square player clicked on (basically playerClicks[-1])
@@ -107,6 +140,7 @@ def main() -> None:
                             print(validMove.getChessNotation())
                             gs.makeMove(validMove)
                             moveMade = True
+                            animate = True
                             sqSelected = ()  # reset clicks
                             playerClicks = []
                     if not moveMade:
@@ -117,16 +151,52 @@ def main() -> None:
                 if e.key == p.K_z and p.key.get_mods() & p.KMOD_META:  # `command + z` for undo
                     gs.undoMove()
                     moveMade = True
+                    animate = False
 
         if moveMade:
             validMoves = gs.getValidMoves()
             moveMade = False
             print(gs.castleRightsUpdates)
             print(gs.currentCastleRights)
+            if animate:
+                animateMove(gs.moveLog[-1], screen, gs.board, clock)
 
-        drawGameState(screen, gs, font)
+        drawGameState(screen, validMoves, sqSelected)
         clock.tick(MAX_FPS)
         p.display.flip()
+
+
+def animateMove(move: ChessEngine.Move, screen: p.Surface, board: list[list[int]], clock: p.time.Clock):
+    global colours
+    dR = move.endRow - move.startRow
+    dC = move.endCol - move.startCol
+    framesPerMove = 10
+
+    for frame in range(framesPerMove + 1):
+        row, col = (move.startRow + (dR * frame/framesPerMove),
+                    move.startCol + (dC * frame/framesPerMove))
+
+        drawBoard(screen)
+        drawPieces(screen, board)
+
+        # erase the piece moved from its ending square
+        colour = colours[(move.endRow + move.endCol) % 2]
+        endSquare = p.Rect(move.endCol*SQ_SIZE,
+                           move.endRow*SQ_SIZE, SQ_SIZE, SQ_SIZE)
+        p.draw.rect(screen, colour, endSquare)
+
+        # draw captured piece onto rectangle
+        if move.pieceCaptured != Pieces.EMPTY:
+            screen.blit(IMAGES[move.pieceCaptured], endSquare)
+
+        drawCoords(screen)
+        drawBorder(screen)
+
+        # draw moving piece
+        screen.blit(IMAGES[move.pieceMoved], p.Rect(
+            col*SQ_SIZE, row*SQ_SIZE, SQ_SIZE, SQ_SIZE))
+        p.display.flip()
+        clock.tick(60)
 
 
 if __name__ == "__main__":

@@ -1,5 +1,9 @@
 {
     "cSpell.words": [
-        "blit"
+        "blit",
+        "KEYDOWN",
+        "KMOD",
+        "MOUSEBUTTONDOWN",
+        "undos"
     ]
 }
