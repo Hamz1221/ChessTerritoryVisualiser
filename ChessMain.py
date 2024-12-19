@@ -102,13 +102,14 @@ def main() -> None:
                 if len(playerClicks) == 2:  # after 2nd click
                     move = ChessEngine.Move(
                         playerClicks[0], playerClicks[1], gs.board)
-                    if move in validMoves:
-                        print(move.getChessNotation())
-                        gs.makeMove(move)
-                        moveMade = True
-                        sqSelected = ()  # reset clicks
-                        playerClicks = []
-                    else:
+                    for validMove in validMoves:
+                        if move == validMove:
+                            print(validMove.getChessNotation())
+                            gs.makeMove(validMove)
+                            moveMade = True
+                            sqSelected = ()  # reset clicks
+                            playerClicks = []
+                    if not moveMade:
                         playerClicks = [sqSelected]
 
             # key handler
