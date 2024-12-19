@@ -585,33 +585,44 @@ class GameState():
         for idx, castleRight in enumerate(castleRights):
             if castleRight:
                 dir = 1 if idx == 0 else -1
-                if (self.board[row][col + dir], self.board[row][col + 2 * dir]) == (EMPTY, EMPTY):
+                maxDepth = 2 if idx == 0 else 3
+                clearSight = True
+                for i in range(1, maxDepth + 1):
+                    if (self.board[row][col + dir * i] != EMPTY):
+                        clearSight = False
+                        break
+
+                if clearSight:
+                    canCastle = True
                     # check empty squares are not being attacked
-                    if self.whiteToMove:
-                        self.whiteKingLoc = (row, col + dir)
-                        inCheck, _, _ = self.checkForPinsAndChecks(
-                            phantom=True)
-                        if not inCheck:
-                            self.whiteKingLoc = (row, col + dir * 2)
+                    if self.whiteToMove:  # white king
+                        for i in range(1, 3):
+                            self.whiteKingLoc = (row, col + dir * i)
                             inCheck, _, _ = self.checkForPinsAndChecks(
                                 phantom=True)
-                            if not inCheck:
-                                # white king can castle!
-                                moves.append(
-                                    Move((row, col), (row, col + dir * 2), self.board, castleRightsChanged=True, isCastle=True))
+                            if inCheck:
+                                canCastle = False
+                                break
+
+                        if canCastle:
+                            moves.append(Move((row, col), (row, col + dir * 2),
+                                         self.board, castleRightsChanged=True, isCastle=True))
+
                         self.whiteKingLoc = (row, col)
+
                     else:  #  black king
-                        self.blackKingLoc = (row, col + dir)
-                        inCheck, _, _ = self.checkForPinsAndChecks(
-                            phantom=True)
-                        if not inCheck:
-                            self.blackKingLoc = (row, col + dir * 2)
+                        for i in range(1, 3):
+                            self.blackKingLoc = (row, col + dir * i)
                             inCheck, _, _ = self.checkForPinsAndChecks(
                                 phantom=True)
-                            if not inCheck:
-                                # black king can castle!
-                                moves.append(
-                                    Move((row, col), (row, col + dir * 2), self.board, castleRightsChanged=True, isCastle=True))
+                            if inCheck:
+                                canCastle = False
+                                break
+
+                        if canCastle:
+                            moves.append(Move((row, col), (row, col + dir * 2),
+                                         self.board, castleRightsChanged=True, isCastle=True))
+
                         self.blackKingLoc = (row, col)
 
     def getQueenMoves(self, row: int, col: int, moves: list[Move]):

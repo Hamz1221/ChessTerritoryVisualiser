@@ -106,7 +106,8 @@ def main() -> None:
     validMoves = gs.getValidMoves()
     moveMade = False
     undoMove = False
-    canUndo = True
+    canUndo = False
+    gameOver = False
     UNDO_DELAY = 0.2  # seconds
     loadImages()  # do this once, before the while loop
 
@@ -123,40 +124,45 @@ def main() -> None:
 
             # mouse handler
             elif e.type == p.MOUSEBUTTONDOWN:
-                location = p.mouse.get_pos()  # (x, y)
-                col = location[0] // SQ_SIZE
-                row = location[1] // SQ_SIZE
-                if sqSelected == (row, col):
-                    # deselect
-                    sqSelected = ()
-                    playerClicks = []
-                else:
-                    sqSelected = (row, col)
-                    # append both first and second clicks
-                    playerClicks.append(sqSelected)
-                if len(playerClicks) == 2:  # after 2nd click
-                    move = ChessEngine.Move(
-                        playerClicks[0], playerClicks[1], gs.board)
-                    for validMove in validMoves:
-                        if move == validMove:
-                            print(validMove.getChessNotation())
-                            gs.makeMove(validMove)
-                            moveMade = True
-                            undoMove = False
-                            sqSelected = ()  # reset clicks
-                            playerClicks = []
-                    if not moveMade:
-                        playerClicks = [sqSelected]
+                if not gameOver:
+                    location = p.mouse.get_pos()  # (x, y)
+                    col = location[0] // SQ_SIZE
+                    row = location[1] // SQ_SIZE
+                    if sqSelected == (row, col):
+                        # deselect
+                        sqSelected = ()
+                        playerClicks = []
+                    else:
+                        sqSelected = (row, col)
+                        # append both first and second clicks
+                        playerClicks.append(sqSelected)
+                    if len(playerClicks) == 2:  # after 2nd click
+                        move = ChessEngine.Move(
+                            playerClicks[0], playerClicks[1], gs.board)
+                        for validMove in validMoves:
+                            if move == validMove:
+                                print(validMove.getChessNotation())
+                                gs.makeMove(validMove)
+                                moveMade = True
+                                undoMove = False
+                                canUndo = True
+                                sqSelected = ()  # reset clicks
+                                playerClicks = []
+                        if not moveMade:
+                            playerClicks = [sqSelected]
 
             # key handler
             if e.type == p.KEYDOWN:
+                # `shift + command + z` for redo
                 if e.key == p.K_z and (p.key.get_mods() & p.KMOD_META) and (p.key.get_mods() & p.KMOD_SHIFT):
-                    # `shift + command + z` for redo
+                    canUndo = False
                     idxBefore = gs.moveIdx
                     gs.redoMove()
                     idxAfter = gs.moveIdx
                     moveMade = idxBefore != idxAfter
                     undoMove = False
+                    p.time.set_timer(p.USEREVENT, int(UNDO_DELAY * 1000))
+
                 # `command + z` for undo
                 elif canUndo and e.key == p.K_z and (p.key.get_mods() & p.KMOD_META):
                     canUndo = False
@@ -167,12 +173,23 @@ def main() -> None:
                     undoMove = idxBefore != idxAfter
                     p.time.set_timer(p.USEREVENT, int(UNDO_DELAY * 1000))
 
+                # `command + r` for restart
+                elif e.key == p.K_r and (p.key.get_mods() & p.KMOD_META):
+                    gs = ChessEngine.GameState()
+                    validMoves = gs.getValidMoves()
+                    sqSelected = ()
+                    playerClicks = []
+                    undoMove = False
+                    canUndo = True
+                    gameOver = False
+
             if e.type == p.USEREVENT:
                 canUndo = True
                 p.time.set_timer(p.USEREVENT, 0)
 
         if moveMade:
             validMoves = gs.getValidMoves()
+            gameOver = gs.checkmate or gs.stalemate
             moveMade = False
             print(gs.castleRightsUpdates)
             print(gs.currentCastleRights)
@@ -184,8 +201,32 @@ def main() -> None:
             print(len(gs.moveLog))
 
         drawGameState(screen, validMoves, sqSelected)
+        if gameOver:
+            if gs.checkmate:
+                if gs.whiteToMove:
+                    drawText(screen, "Black wins by checkmate!", "black")
+                else:
+                    drawText(screen, "White wins by checkmate!", "white")
+            else:
+                drawText(screen, "Stalemate :/", stalemate=True)
+            drawText(screen, "(shft+)cmd+z to re/undo, cmd+r to restart",
+                     size=22, yoffset=60)
         clock.tick_busy_loop(MAX_FPS)
         p.display.flip()
+
+
+def drawText(screen: p.Surface, text: str, colour: str = "black", stalemate: bool = False, size: int = 32, yoffset: int = 0):
+    font = p.font.SysFont("Helvetica", size, True, False)
+    textObject = font.render(text, 0, p.Color("black"))
+    textLocation = p.Rect(0, 0, WIDTH, HEIGHT).move(
+        WIDTH/2 - textObject.get_width()/2, HEIGHT/2 - textObject.get_height()/2).move(0, yoffset)
+    screen.blit(textObject, textLocation)
+    # screen.blit(textObject, textLocation.move(3, 3))
+    textObject = font.render(text, 0, p.Color(
+        "Green" if not stalemate else "Yellow"))
+    screen.blit(textObject, textLocation.move(1, 1))
+    textObject = font.render(text, 0, p.Color(colour))
+    screen.blit(textObject, textLocation.move(2, 2))
 
 
 def animateMove(moveLog: list[ChessEngine.Move], screen: p.Surface, board: list[list[int]], clock: p.time.Clock, undoMove: bool):
