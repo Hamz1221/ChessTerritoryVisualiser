@@ -78,6 +78,8 @@ class GameState():
         self.castleRightsUpdates: list[CastlingRights] = [
             self.currentCastleRights]
 
+        # self.protectionMoves = []
+
     # Executes move, not working for castling, en passant and promotions
 
     def makeMove(self, move: Move, redo: bool = False):
@@ -289,11 +291,19 @@ class GameState():
 
         return inCheck, pins, checks
 
-    def getValidMoves(self) -> list[Move]:
+    def getEnemyTerritory(self) -> list[Move]:
+        self.whiteToMove = not self.whiteToMove
+        _, enemy_protectionMoves = self.getValidMoves()
+        self.whiteToMove = not self.whiteToMove
+
+        return enemy_protectionMoves
+
+    def getValidMoves(self) -> Tuple[list[Move], list[Move]]:
         '''
         All moves considering checks
         '''
         moves = []
+        protectionMoves = []
         self.inCheck, self.pins, self.checks = self.checkForPinsAndChecks()
         kingRow, kingCol = self.whiteKingLoc if self.whiteToMove else self.blackKingLoc
         allyColour = WHITE if self.whiteToMove else BLACK
@@ -302,7 +312,7 @@ class GameState():
         if self.inCheck:
             if len(self.checks) == 1:  # only 1 check, move king or block/capture
                 print("only one check, move king or block/capture")
-                moves = self.getAllPossibleMoves()
+                moves, _ = self.getAllPossibleMoves()
                 # to block a check you must move a piece into one of the squares between the enemy piece and king
                 checkRow, checkCol, checkDirV, checkDirH = self.checks[0]
                 # enemy piece causing check
@@ -328,9 +338,9 @@ class GameState():
                             moves.remove(move)
             else:  # double check, king has to move
                 print("Double check!")
-                self.getKingMoves(kingRow, kingCol, moves)
+                self.getKingMoves(kingRow, kingCol, moves, [])
         else:  #  not in check, all moves are fine
-            moves = self.getAllPossibleMoves()
+            moves, protectionMoves = self.getAllPossibleMoves()
 
         if len(moves) == 0:
             if self.inCheck:
@@ -338,13 +348,14 @@ class GameState():
             else:
                 self.stalemate = True
 
-        return moves  # for now we will not worry about checks
+        return (moves, protectionMoves)
 
-    def getAllPossibleMoves(self) -> list[Move]:
+    def getAllPossibleMoves(self) -> Tuple[list[Move], list[Move]]:
         '''
         All moves without considering checks
         '''
         moves: list[Move] = []
+        protectionMoves: list[Move] = []
         for row in range(len(self.board)):
             for col in range(len(self.board[row])):
                 turn = self.board[row][col][0]
@@ -352,21 +363,27 @@ class GameState():
                     piece = self.board[row][col][1]
                     match piece:
                         case Pieces.PAWN:
-                            self.getPawnMoves(row, col, moves)
+                            self.getPawnMoves(
+                                row, col, moves, protectionMoves)
                         case Pieces.ROOK:
-                            self.getRookMoves(row, col, moves)
+                            self.getRookMoves(
+                                row, col, moves, protectionMoves)
                         case Pieces.KNIGHT:
-                            self.getKnightMoves(row, col, moves)
+                            self.getKnightMoves(
+                                row, col, moves, protectionMoves)
                         case Pieces.BISHOP:
-                            self.getBishopMoves(row, col, moves)
+                            self.getBishopMoves(
+                                row, col, moves, protectionMoves)
                         case Pieces.KING:
-                            self.getKingMoves(row, col, moves)
+                            self.getKingMoves(
+                                row, col, moves, protectionMoves)
                         case Pieces.QUEEN:
-                            self.getQueenMoves(row, col, moves)
+                            self.getQueenMoves(
+                                row, col, moves, protectionMoves)
                         case _:
                             raise ValueError(
                                 f"Piece undefined at ({row},{col})")
-        return moves
+        return (moves, protectionMoves)
 
     def canCaptureSquare(self, row, col) -> bool:
         '''
@@ -377,7 +394,7 @@ class GameState():
     def onBoard(self, row, col) -> bool:
         return row >= 0 and row < len(self.board) and col >= 0 and col < len(self.board[row])
 
-    def getPawnMoves(self, row: int, col: int, moves: list[Move]):
+    def getPawnMoves(self, row: int, col: int, moves: list[Move], protectionMoves: list[Move]):
         '''
         Get all pawn moves at pawn location and add to moves list
         '''
@@ -420,6 +437,9 @@ class GameState():
                 if self.board[row + moveAmount][col - 1][0] == enemyColour:
                     moves.append(
                         Move((row, col), (row + moveAmount, col - 1), self.board, pawnPromotion=pawnPromotion))
+                else:
+                    protectionMoves.append(
+                        Move((row, col), (row + moveAmount, col - 1), self.board, pawnPromotion=pawnPromotion))
                 if (row + moveAmount, col - 1) == self.enPassantPossible:
                     moves.append(
                         Move((row, col), (row + moveAmount, col - 1), self.board, enPassant=True))
@@ -429,11 +449,14 @@ class GameState():
                 if self.board[row + moveAmount][col + 1][0] == enemyColour:
                     moves.append(
                         Move((row, col), (row + moveAmount, col + 1), self.board, pawnPromotion=pawnPromotion))
+                else:
+                    protectionMoves.append(
+                        Move((row, col), (row + moveAmount, col + 1), self.board, pawnPromotion=pawnPromotion))
                 if (row + moveAmount, col + 1) == self.enPassantPossible:
                     moves.append(
                         Move((row, col), (row + moveAmount, col + 1), self.board, enPassant=True))
 
-    def getRookMoves(self, row: int, col: int, moves: list[Move]):
+    def getRookMoves(self, row: int, col: int, moves: list[Move], protectionMoves: list[Move]):
         '''
         Get all rook moves at rook location and add to moves list
         '''
@@ -471,18 +494,24 @@ class GameState():
                         if self.board[endRow][endCol] == EMPTY:
                             moves.append(
                                 Move((row, col), (endRow, endCol), self.board, castleRightsChanged=castleRightsChanged))
+                            protectionMoves.append(
+                                Move((row, col), (endRow, endCol), self.board, castleRightsChanged=castleRightsChanged))
                         elif self.board[endRow][endCol][0] == enemyColour:
                             moves.append(
                                 Move((row, col), (endRow, endCol), self.board, castleRightsChanged=castleRightsChanged))
+                            protectionMoves.append(
+                                Move((row, col), (endRow, endCol), self.board, castleRightsChanged=castleRightsChanged))
                             break  # cant look beyond this piece
                         else:
+                            protectionMoves.append(
+                                Move((row, col), (endRow, endCol), self.board, castleRightsChanged=castleRightsChanged))
                             break  # hit ally piece, cannot attack or go further
                     else:
                         break  # cant move rook in this direction due to pin
                 else:
                     break  # off the board
 
-    def getKnightMoves(self, row: int, col: int, moves: list[Move]):
+    def getKnightMoves(self, row: int, col: int, moves: list[Move], protectionMoves: list[Move]):
         '''
         Get all knight moves at knight location and add to moves list
         '''
@@ -503,7 +532,10 @@ class GameState():
                                 moves.append(
                                     Move((row, col), (newRow, newCol), self.board))
 
-    def getBishopMoves(self, row: int, col: int, moves: list[Move]):
+                            protectionMoves.append(
+                                Move((row, col), (newRow, newCol), self.board))
+
+    def getBishopMoves(self, row: int, col: int, moves: list[Move], protectionMoves: list[Move]):
         '''
         Get all bishop moves at bishop location and add to moves list
         '''
@@ -529,12 +561,18 @@ class GameState():
                             if self.board[newRow][newCol] == EMPTY:
                                 moves.append(
                                     Move((row, col), (newRow, newCol), self.board))
+                                protectionMoves.append(
+                                    Move((row, col), (newRow, newCol), self.board))
                             elif self.canCaptureSquare(newRow, newCol):
                                 moves.append(
                                     Move((row, col), (newRow, newCol), self.board))
+                                protectionMoves.append(
+                                    Move((row, col), (newRow, newCol), self.board))
                                 break  # cannot look further
                             else:
-                                break  # hit wall or ally
+                                protectionMoves.append(
+                                    Move((row, col), (newRow, newCol), self.board))
+                                break  # hit ally
                             rowShift += rowShiftInc
                             colShift += colShiftInc
                         else:
@@ -542,7 +580,7 @@ class GameState():
                 else:  # cant move in this direction
                     break
 
-    def getKingMoves(self, row: int, col: int, moves: list[Move]):
+    def getKingMoves(self, row: int, col: int, moves: list[Move], protectionMoves: list[Move]):
         '''
         Get all king moves at king location and add to moves list
         '''
@@ -555,21 +593,30 @@ class GameState():
             for colShift in [-1, 0, 1]:
                 if not (rowShift == 0 and colShift == 0):  # not looking at curr pos
                     newRow, newCol = row + rowShift, col + colShift
-                    if self.onBoard(newRow, newCol) and self.canCaptureSquare(newRow, newCol):
-                        if self.whiteToMove:  # place King on end square and check for checks
-                            self.whiteKingLoc = (newRow, newCol)
+                    if self.onBoard(newRow, newCol):
+                        if self.canCaptureSquare(newRow, newCol):
+                            if self.whiteToMove:  # place King on end square and check for checks
+                                self.whiteKingLoc = (newRow, newCol)
+                            else:
+                                self.blackKingLoc = (newRow, newCol)
+                            inCheck, pins, checks = self.checkForPinsAndChecks(
+                                phantom=True)
+                            if not inCheck:
+                                moves.append(
+                                    Move((row, col), (newRow, newCol), self.board, castleRightsChanged=castlingRightsChanged))
+                                protectionMoves.append(Move(
+                                    (row, col), (newRow, newCol), self.board, castleRightsChanged=castlingRightsChanged))
+                                print(f"King can move to ({newRow},{newCol})")
+                            elif len(checks) == 1:
+                                protectionMoves.append(Move(
+                                    (row, col), (newRow, newCol), self.board, castleRightsChanged=castlingRightsChanged))
+                            if self.whiteToMove:
+                                self.whiteKingLoc = (row, col)
+                            else:
+                                self.blackKingLoc = (row, col)
                         else:
-                            self.blackKingLoc = (newRow, newCol)
-                        inCheck, pins, checks = self.checkForPinsAndChecks(
-                            phantom=True)
-                        if not inCheck:
-                            moves.append(
-                                Move((row, col), (newRow, newCol), self.board, castleRightsChanged=castlingRightsChanged))
-                            print(f"King can move to ({newRow},{newCol})")
-                        if self.whiteToMove:
-                            self.whiteKingLoc = (row, col)
-                        else:
-                            self.blackKingLoc = (row, col)
+                            protectionMoves.append(Move(
+                                (row, col), (newRow, newCol), self.board, castleRightsChanged=castlingRightsChanged))
 
         self.getCastlingMoves(row, col, moves)
 
@@ -625,10 +672,10 @@ class GameState():
 
                         self.blackKingLoc = (row, col)
 
-    def getQueenMoves(self, row: int, col: int, moves: list[Move]):
+    def getQueenMoves(self, row: int, col: int, moves: list[Move], protectionMoves: list[Move]):
         '''
         Get all queen moves at queen location and add to moves list
         '''
         # rook + bishop moves
-        self.getRookMoves(row, col, moves)
-        self.getBishopMoves(row, col, moves)
+        self.getRookMoves(row, col, moves, protectionMoves)
+        self.getBishopMoves(row, col, moves, protectionMoves)

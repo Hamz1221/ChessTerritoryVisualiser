@@ -18,7 +18,7 @@ def loadImages():
             f"images/{piece}.png"), (SQ_SIZE, SQ_SIZE))
 
 
-def highlightSquares(screen: p.Surface, validMoves: list[ChessEngine.Move], sqSelected: ChessEngine.Square):
+def highlightSquares(screen: p.Surface, validMoves: list[ChessEngine.Move], protectionMoves: list[ChessEngine.Move], sqSelected: ChessEngine.Square):
     if sqSelected != ():
         row, col = sqSelected
 
@@ -35,17 +35,39 @@ def highlightSquares(screen: p.Surface, validMoves: list[ChessEngine.Move], sqSe
                 if move.startRow == row and move.startCol == col:
                     screen.blit(
                         s, (move.endCol * SQ_SIZE, move.endRow * SQ_SIZE))
+    else:
+        for row in range(DIMENSION):
+            for col in range(DIMENSION):
+                sq_colour = (128, 128, 128)
+                p.draw.rect(screen, sq_colour, p.Rect(
+                    col*SQ_SIZE, row*SQ_SIZE, SQ_SIZE, SQ_SIZE))
+                p.draw.rect(screen, "black", p.Rect(
+                    col*SQ_SIZE, row*SQ_SIZE, SQ_SIZE, SQ_SIZE), 2)
+        (allyColour, enemyColour) = (
+            "Blue", "Red") if gs.whiteToMove else ("Red", "Blue")
+        s = p.Surface((SQ_SIZE, SQ_SIZE))
+        s.set_alpha(60)  # transparency value -> 0 transparent; 255 opaque
+        s.fill(p.Color(allyColour))
+        for move in protectionMoves:
+            screen.blit(
+                s, (move.endCol * SQ_SIZE, move.endRow * SQ_SIZE))
+
+        s.fill(p.Color(enemyColour))
+        attackMoves = gs.getEnemyTerritory()
+        for move in attackMoves:
+            screen.blit(
+                s, (move.endCol * SQ_SIZE, move.endRow * SQ_SIZE))
 
 
-def drawGameState(screen: p.Surface, validMoves: list[ChessEngine.Move], sqSelected: ChessEngine.Square):
+def drawGameState(screen: p.Surface, validMoves: list[ChessEngine.Move], protectionMoves: list[ChessEngine.Move], sqSelected: ChessEngine.Square):
     '''
     Responsible for all the graphics within a current game state
     '''
     drawBoard(screen)  # draw squares on board
+    # add in piece highlighting or move suggestions [later] (code for attack visualiser goes here)
+    highlightSquares(screen, validMoves, protectionMoves, sqSelected)
     drawCoords(screen)
     drawBorder(screen)
-    # add in piece highlighting or move suggestions [later] (code for attack visualiser goes here)
-    highlightSquares(screen, validMoves, sqSelected)
     drawPieces(screen, gs.board)  # draw pieces on top of those squares
 
 
@@ -103,7 +125,7 @@ def main() -> None:
     clock = p.time.Clock()
     screen.fill(p.Color("white"))
     gs = ChessEngine.GameState()
-    validMoves = gs.getValidMoves()
+    validMoves, protectionMoves = gs.getValidMoves()
     moveMade = False
     undoMove = False
     canUndo = False
@@ -132,7 +154,7 @@ def main() -> None:
                         # deselect
                         sqSelected = ()
                         playerClicks = []
-                    else:
+                    elif not (playerClicks == [] and (gs.board[row][col] == Pieces.EMPTY or gs.board[row][col][0] == (Pieces.BLACK if gs.whiteToMove else Pieces.WHITE))):
                         sqSelected = (row, col)
                         # append both first and second clicks
                         playerClicks.append(sqSelected)
@@ -146,10 +168,12 @@ def main() -> None:
                                 moveMade = True
                                 undoMove = False
                                 canUndo = True
-                                sqSelected = ()  # reset clicks
-                                playerClicks = []
-                        if not moveMade:
+                                break
+                        if not moveMade and (gs.board[playerClicks[1][0]][playerClicks[1][1]][0] == (Pieces.WHITE if gs.whiteToMove else Pieces.BLACK)):
                             playerClicks = [sqSelected]
+                        else:
+                            sqSelected = ()  # reset clicks
+                            playerClicks = []
 
             # key handler
             if e.type == p.KEYDOWN:
@@ -176,7 +200,7 @@ def main() -> None:
                 # `command + r` for restart
                 elif e.key == p.K_r and (p.key.get_mods() & p.KMOD_META):
                     gs = ChessEngine.GameState()
-                    validMoves = gs.getValidMoves()
+                    validMoves, protectionMoves = gs.getValidMoves()
                     sqSelected = ()
                     playerClicks = []
                     undoMove = False
@@ -188,7 +212,7 @@ def main() -> None:
                 p.time.set_timer(p.USEREVENT, 0)
 
         if moveMade:
-            validMoves = gs.getValidMoves()
+            validMoves, protectionMoves = gs.getValidMoves()
             gameOver = gs.checkmate or gs.stalemate
             moveMade = False
             print(gs.castleRightsUpdates)
@@ -200,7 +224,7 @@ def main() -> None:
             print(gs.moveLogSize)
             print(len(gs.moveLog))
 
-        drawGameState(screen, validMoves, sqSelected)
+        drawGameState(screen, validMoves, protectionMoves, sqSelected)
         if gameOver:
             if gs.checkmate:
                 if gs.whiteToMove:
