@@ -60,6 +60,8 @@ class GameState():
         ]
         self.whiteToMove = True
         self.moveLog: list[Move] = []
+        self.moveLogSize = 0
+        self.moveIdx: int = None
         self.whiteKingLoc = (7, 4)
         self.blackKingLoc = (0, 4)
         self.inCheck = False
@@ -77,11 +79,20 @@ class GameState():
             self.currentCastleRights]
 
     # Executes move, not working for castling, en passant and promotions
-    def makeMove(self, move: Move):
+
+    def makeMove(self, move: Move, redo: bool = False):
         self.board[move.startRow][move.startCol] = EMPTY
         self.board[move.endRow][move.endCol] = move.pieceMoved
+        if self.moveIdx == None:
+            self.moveIdx = -1
         #  log move for undos, see history, etc
-        self.moveLog.append(move)
+        if self.moveIdx != self.moveLogSize - 1 and not redo:
+            del self.moveLog[self.moveIdx + 1:]
+            self.moveLogSize = self.moveIdx + 1
+        self.moveIdx += 1
+        if not redo:
+            self.moveLog.append(move)
+            self.moveLogSize += 1
 
         # track kings
         if move.pieceMoved == W_K:
@@ -152,8 +163,9 @@ class GameState():
         self.whiteToMove = not self.whiteToMove  #  switch turn
 
     def undoMove(self):
-        if len(self.moveLog) > 0:
-            move: Move = self.moveLog.pop()
+        if self.moveIdx != None:
+            move: Move = self.moveLog[self.moveIdx]
+            self.moveIdx = self.moveIdx - 1 if self.moveIdx > 0 else None
             self.board[move.startRow][move.startCol] = move.pieceMoved
             self.board[move.endRow][move.endCol] = move.pieceCaptured
             self.whiteToMove = not self.whiteToMove  #  switch turn back
@@ -185,6 +197,15 @@ class GameState():
                 else:
                     self.board[move.endRow][0] = self.board[move.endRow][move.endCol + 1]
                     self.board[move.endRow][move.endCol + 1] = EMPTY
+
+    def redoMove(self):
+        if self.moveLogSize > 0:
+            print(f"move idx before redo: {self.moveIdx}")
+            if self.moveIdx == None:
+                self.makeMove(self.moveLog[0], redo=True)
+            elif self.moveIdx < self.moveLogSize - 1:
+                self.makeMove(self.moveLog[self.moveIdx + 1], redo=True)
+            print(f"move idx after redo: {self.moveIdx}")
 
     def checkForPinsAndChecks(self, phantom: bool = False):
         pins = []  # squares where the allied pinned piece is and direction pinned from

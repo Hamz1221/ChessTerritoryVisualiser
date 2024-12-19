@@ -4,6 +4,7 @@
         "KEYDOWN",
         "KMOD",
         "MOUSEBUTTONDOWN",
-        "undos"
+        "undos",
+        "USEREVENT"
     ]
 }

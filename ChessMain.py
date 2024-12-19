@@ -105,7 +105,9 @@ def main() -> None:
     gs = ChessEngine.GameState()
     validMoves = gs.getValidMoves()
     moveMade = False
-    animate = False
+    undoMove = False
+    canUndo = True
+    UNDO_DELAY = 0.2  # seconds
     loadImages()  # do this once, before the while loop
 
     # most recent square player clicked on (basically playerClicks[-1])
@@ -140,7 +142,7 @@ def main() -> None:
                             print(validMove.getChessNotation())
                             gs.makeMove(validMove)
                             moveMade = True
-                            animate = True
+                            undoMove = False
                             sqSelected = ()  # reset clicks
                             playerClicks = []
                     if not moveMade:
@@ -148,45 +150,70 @@ def main() -> None:
 
             # key handler
             if e.type == p.KEYDOWN:
-                if e.key == p.K_z and p.key.get_mods() & p.KMOD_META:  # `command + z` for undo
+                if e.key == p.K_z and (p.key.get_mods() & p.KMOD_META) and (p.key.get_mods() & p.KMOD_SHIFT):
+                    # `shift + command + z` for redo
+                    idxBefore = gs.moveIdx
+                    gs.redoMove()
+                    idxAfter = gs.moveIdx
+                    moveMade = idxBefore != idxAfter
+                    undoMove = False
+                # `command + z` for undo
+                elif canUndo and e.key == p.K_z and (p.key.get_mods() & p.KMOD_META):
+                    canUndo = False
+                    idxBefore = gs.moveIdx
                     gs.undoMove()
-                    moveMade = True
-                    animate = False
+                    idxAfter = gs.moveIdx
+                    moveMade = idxBefore != idxAfter
+                    undoMove = idxBefore != idxAfter
+                    p.time.set_timer(p.USEREVENT, int(UNDO_DELAY * 1000))
+
+            if e.type == p.USEREVENT:
+                canUndo = True
+                p.time.set_timer(p.USEREVENT, 0)
 
         if moveMade:
             validMoves = gs.getValidMoves()
             moveMade = False
             print(gs.castleRightsUpdates)
             print(gs.currentCastleRights)
-            if animate:
-                animateMove(gs.moveLog[-1], screen, gs.board, clock)
+            if gs.moveLogSize > 0:
+                animateMove(gs.moveLog, screen,
+                            gs.board, clock, undoMove)
+            print(gs.moveIdx)
+            print(gs.moveLogSize)
+            print(len(gs.moveLog))
 
         drawGameState(screen, validMoves, sqSelected)
-        clock.tick(MAX_FPS)
+        clock.tick_busy_loop(MAX_FPS)
         p.display.flip()
 
 
-def animateMove(move: ChessEngine.Move, screen: p.Surface, board: list[list[int]], clock: p.time.Clock):
+def animateMove(moveLog: list[ChessEngine.Move], screen: p.Surface, board: list[list[int]], clock: p.time.Clock, undoMove: bool):
     global colours
-    dR = move.endRow - move.startRow
-    dC = move.endCol - move.startCol
+    move = moveLog[gs.moveIdx] if not undoMove else moveLog[gs.moveIdx +
+                                                            1 if gs.moveIdx != None else 0]
+    startRow, startCol, endRow, endCol = move.startRow, move.startCol, move.endRow, move.endCol
+    if undoMove:
+        startRow, startCol, endRow, endCol = move.endRow, move.endCol, move.startRow, move.startCol
+    dR = endRow - startRow
+    dC = endCol - startCol
     framesPerMove = 10
 
     for frame in range(framesPerMove + 1):
-        row, col = (move.startRow + (dR * frame/framesPerMove),
-                    move.startCol + (dC * frame/framesPerMove))
+        row, col = (startRow + (dR * frame/framesPerMove),
+                    startCol + (dC * frame/framesPerMove))
 
         drawBoard(screen)
         drawPieces(screen, board)
 
         # erase the piece moved from its ending square
-        colour = colours[(move.endRow + move.endCol) % 2]
-        endSquare = p.Rect(move.endCol*SQ_SIZE,
-                           move.endRow*SQ_SIZE, SQ_SIZE, SQ_SIZE)
+        colour = colours[(endRow + endCol) % 2]
+        endSquare = p.Rect(endCol*SQ_SIZE,
+                           endRow*SQ_SIZE, SQ_SIZE, SQ_SIZE)
         p.draw.rect(screen, colour, endSquare)
 
         # draw captured piece onto rectangle
-        if move.pieceCaptured != Pieces.EMPTY:
+        if not undoMove and move.pieceCaptured != Pieces.EMPTY:
             screen.blit(IMAGES[move.pieceCaptured], endSquare)
 
         drawCoords(screen)
