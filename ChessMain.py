@@ -3,7 +3,7 @@ import pygame as p
 import ChessEngine
 import Pieces
 # from Pieces import PIECES, EMPTY, WHITE, BLACK
-
+from ChessEngine import debug
 
 WIDTH = HEIGHT = 640  # 640 | 512 | 400
 DIMENSION = 8
@@ -168,6 +168,8 @@ def main() -> None:
                         for validMove in validMoves:
                             if move == validMove:
                                 print(validMove.getChessNotation())
+                                if validMove.isPawnPromotion:
+                                    print("Pawn promotion!")
                                 gs.makeMove(validMove)
                                 moveMade = True
                                 undoMove = False
@@ -219,14 +221,14 @@ def main() -> None:
             validMoves, protectionMoves = gs.getValidMoves()
             gameOver = gs.checkmate or gs.stalemate
             moveMade = False
-            print(gs.castleRightsUpdates)
-            print(gs.currentCastleRights)
+            debug(gs.castleRightsUpdates)
+            debug(gs.currentCastleRights)
             if gs.moveLogSize > 0:
                 animateMove(gs.moveLog, screen,
                             gs.board, clock, undoMove)
-            print(gs.moveIdx)
-            print(gs.moveLogSize)
-            print(len(gs.moveLog))
+            debug(gs.moveIdx)
+            debug(gs.moveLogSize)
+            debug(len(gs.moveLog))
 
         drawGameState(screen, validMoves, protectionMoves, sqSelected)
         if gameOver:

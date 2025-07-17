@@ -7,6 +7,13 @@ import Pieces
 Square = Tuple[int, int]
 CastlingRights = Tuple[bool, bool, bool, bool]
 
+DEBUG = False
+
+
+def debug(msg):
+    if DEBUG:
+        print(msg)
+
 
 class Move():
     ranksToRows = {"1": 7, "2": 6, "3": 5, "4": 4,
@@ -27,6 +34,7 @@ class Move():
             100 + self.endRow * 10 + self.endCol
 
         self.isPawnPromotion = pawnPromotion
+        self.promotionChoice = None
 
         self.isEnPassant = enPassant
 
@@ -104,7 +112,21 @@ class GameState():
 
         # pawn promotion
         if move.isPawnPromotion:
-            self.board[move.endRow][move.endCol] = move.pieceMoved[0] + QUEEN
+            if move.promotionChoice is None:
+                choiceMap = {
+                    'Q': QUEEN,
+                    'N': KNIGHT,
+                    'R': ROOK,
+                    'B': BISHOP
+                }
+                choice = input(
+                    "What do you want to promote to? (Q, N, R, B): ").upper()
+                while choice not in ['Q', 'N', 'R', 'B']:
+                    choice = input(
+                        "Invalid input\nPlease pick from Q, N, R or B: ").upper()
+                move.promotionChoice = choiceMap[choice]
+            self.board[move.endRow][move.endCol] = move.pieceMoved[0] + \
+                move.promotionChoice
 
         # en passant
         if move.isEnPassant:
@@ -155,7 +177,7 @@ class GameState():
             if move.endCol - move.startCol == 2:  # castled king side
                 self.board[move.endRow][move.endCol -
                                         1] = self.board[move.endRow][7]
-                print(self.board[move.endRow][7])
+                debug(self.board[move.endRow][7])
                 self.board[move.endRow][7] = EMPTY
             else:
                 self.board[move.endRow][move.endCol +
@@ -202,12 +224,12 @@ class GameState():
 
     def redoMove(self):
         if self.moveLogSize > 0:
-            print(f"move idx before redo: {self.moveIdx}")
+            debug(f"move idx before redo: {self.moveIdx}")
             if self.moveIdx == None:
                 self.makeMove(self.moveLog[0], redo=True)
             elif self.moveIdx < self.moveLogSize - 1:
                 self.makeMove(self.moveLog[self.moveIdx + 1], redo=True)
-            print(f"move idx after redo: {self.moveIdx}")
+            debug(f"move idx after redo: {self.moveIdx}")
 
     def checkForPinsAndChecks(self, phantom: bool = False):
         pins = []  # squares where the allied pinned piece is and direction pinned from
@@ -238,7 +260,7 @@ class GameState():
                         if possiblePin == ():  #  1st allied piece could be pinned
                             possiblePin = (endRow, endCol, dir[0], dir[1])
                             if not phantom:
-                                print(
+                                debug(
                                     f"Possible pin by {endPiece} on ({endRow},{endCol})")
                         else:  # 2nd allied piece, so no pin or check possible in this direction
                             break
@@ -264,7 +286,7 @@ class GameState():
                             else:  # piece blocking so pin
                                 pins.append(possiblePin)
                                 if not phantom:
-                                    print(
+                                    debug(
                                         f"{self.board[possiblePin[0]][possiblePin[1]]} on ({possiblePin[0]},{possiblePin[1]}) pinned by {endPiece} on ({endRow},{endCol})")
                                 break
                         else:  # enemy piece not applying check
@@ -609,7 +631,7 @@ class GameState():
                                     Move((row, col), (newRow, newCol), self.board, castleRightsChanged=castlingRightsChanged))
                                 protectionMoves.append(Move(
                                     (row, col), (newRow, newCol), self.board, castleRightsChanged=castlingRightsChanged))
-                                print(f"King can move to ({newRow},{newCol})")
+                                debug(f"King can move to ({newRow},{newCol})")
                             elif len(checks) == 1:
                                 protectionMoves.append(Move(
                                     (row, col), (newRow, newCol), self.board, castleRightsChanged=castlingRightsChanged))
