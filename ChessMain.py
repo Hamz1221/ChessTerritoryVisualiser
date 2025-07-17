@@ -167,10 +167,11 @@ def main() -> None:
                             playerClicks[0], playerClicks[1], gs.board)
                         for validMove in validMoves:
                             if move == validMove:
-                                print(validMove.getChessNotation())
                                 if validMove.isPawnPromotion:
                                     print("Pawn promotion!")
                                 gs.makeMove(validMove)
+                                # print(validMove.getChessNotation())
+                                gs.displayNotation(validMoves)
                                 moveMade = True
                                 undoMove = False
                                 canUndo = True

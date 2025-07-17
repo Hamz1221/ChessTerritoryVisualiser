@@ -24,7 +24,7 @@ class Move():
                    "e": 4, "f": 5, "g": 6, "h": 7}
     colsToFiles = {v: k for k, v in filesToCols.items()}
 
-    def __init__(self, startSq: Square, endSq: Square, board: list, enPassant: bool = False, pawnPromotion: bool = False, castleRightsChanged: bool = False, isCastle: bool = False) -> None:
+    def __init__(self, startSq: Square, endSq: Square, board: list, enPassant: bool = False, pawnPromotion: bool = False, castleRightsChanged: bool = False, isCastle: bool = False, kingSideCastle: bool = None, isCheck: bool = False, isCheckmate: bool = False) -> None:
         self.startRow, self.startCol = startSq
         self.endRow, self.endCol = endSq
         self.pieceMoved = board[self.startRow][self.startCol]
@@ -40,10 +40,24 @@ class Move():
 
         self.castleRightsChanged = castleRightsChanged
         self.isCastle = isCastle
+        self.kingSideCastle = kingSideCastle
+
+        self.isCheck = isCheck
+        self.isCheckmate = isCheckmate
+        self.isCapture = self.pieceCaptured != EMPTY
 
     def getChessNotation(self) -> str:
-        # can flesh this out more - real chess notation
-        return self.getRankFile(self.startRow, self.startCol) + self.getRankFile(self.endRow, self.endCol)
+        castle = None if not self.isCastle else '0-0' if self.kingSideCastle else '0-0-0'
+        endSquare = self.getRankFile(self.endRow, self.endCol)
+        startRank = self.rowsToRanks[self.startRow]
+        startFile = self.colsToFiles[self.startCol]
+        checkFlag = '#' if self.isCheckmate else '+' if self.isCheck else ''
+        captureFlag = 'x' if self.isCapture else ''
+        movedPiece = self.pieceMoved[1] if self.pieceMoved[
+            1] != PAWN else startFile if self.isCapture else ''
+        pawnPromotion = '' if not self.isPawnPromotion else '=' + self.promotionChoice
+
+        return castle, movedPiece, captureFlag, endSquare, checkFlag, startRank, startFile, pawnPromotion
 
     def getRankFile(self, r, c) -> str:
         return self.colsToFiles[c] + self.rowsToRanks[r]
@@ -53,9 +67,13 @@ class Move():
             return self.moveID == other.moveID
         return False
 
+    def __str__(self) -> str:
+        castle, movedPiece, captureFlag, endSquare, checkFlag, _, _, pawnPromotion = self.getChessNotation()
+        return castle if castle is not None else movedPiece + captureFlag + endSquare + pawnPromotion + checkFlag
+
 
 class GameState():
-    def __init__(self) -> None:
+    def __init__(self, moveLog: list[Move] = []) -> None:
         self.board = [
             [B_R, B_N, B_B, B_Q, B_K, B_B, B_N, B_R],
             [B_P, B_P, B_P, B_P, B_P, B_P, B_P, B_P],
@@ -67,8 +85,8 @@ class GameState():
             [W_R, W_N, W_B, W_Q, W_K, W_B, W_N, W_R],
         ]
         self.whiteToMove = True
-        self.moveLog: list[Move] = []
-        self.moveLogSize = 0
+        self.moveLog: list[Move] = moveLog
+        self.moveLogSize = len(moveLog)
         self.moveIdx: int = None
         self.whiteKingLoc = (7, 4)
         self.blackKingLoc = (0, 4)
@@ -186,6 +204,9 @@ class GameState():
 
         self.whiteToMove = not self.whiteToMove  #  switch turn
 
+        # update the move notation if a check(mate) occurred
+        self.getValidMoves()
+
     def undoMove(self):
         if self.moveIdx != None:
             move: Move = self.moveLog[self.moveIdx]
@@ -280,8 +301,9 @@ class GameState():
                                 inCheck = True
                                 checks.append((endRow, endCol, dir[0], dir[1]))
                                 if not phantom:
-                                    print(
+                                    debug(
                                         f"Checked by {endPiece} on ({endRow},{endCol})")
+                                    self.moveLog[-1].isCheck = True
                                 break
                             else:  # piece blocking so pin
                                 pins.append(possiblePin)
@@ -309,7 +331,7 @@ class GameState():
                     inCheck = True
                     checks.append((endRow, endCol, move[0], move[1]))
                     if not phantom:
-                        print(f"Checked by {endPiece} on ({endRow},{endCol})")
+                        debug(f"Checked by {endPiece} on ({endRow},{endCol})")
 
         return inCheck, pins, checks
 
@@ -333,7 +355,7 @@ class GameState():
 
         if self.inCheck:
             if len(self.checks) == 1:  # only 1 check, move king or block/capture
-                print("only one check, move king or block/capture")
+                debug("only one check, move king or block/capture")
                 moves, _ = self.getAllPossibleMoves()
                 protectionMoves = moves
                 # to block a check you must move a piece into one of the squares between the enemy piece and king
@@ -360,7 +382,7 @@ class GameState():
                         if not (move.endRow, move.endCol) in validSqs:
                             moves.remove(move)
             else:  # double check, king has to move
-                print("Double check!")
+                debug("Double check!")
                 self.getKingMoves(kingRow, kingCol, moves, [])
                 protectionMoves = moves
         else:  #  not in check, all moves are fine
@@ -369,6 +391,7 @@ class GameState():
         if len(moves) == 0:
             if self.inCheck:
                 self.checkmate = True
+                self.moveLog[-1].isCheckmate = True
             else:
                 self.stalemate = True
 
@@ -678,7 +701,7 @@ class GameState():
 
                         if canCastle:
                             moves.append(Move((row, col), (row, col + dir * 2),
-                                         self.board, castleRightsChanged=True, isCastle=True))
+                                         self.board, castleRightsChanged=True, isCastle=True, kingSideCastle=(maxDepth == 2)))
 
                         self.whiteKingLoc = (row, col)
 
@@ -693,7 +716,7 @@ class GameState():
 
                         if canCastle:
                             moves.append(Move((row, col), (row, col + dir * 2),
-                                         self.board, castleRightsChanged=True, isCastle=True))
+                                         self.board, castleRightsChanged=True, isCastle=True, kingSideCastle=(maxDepth == 2)))
 
                         self.blackKingLoc = (row, col)
 
@@ -704,3 +727,47 @@ class GameState():
         # rook + bishop moves
         self.getRookMoves(row, col, moves, protectionMoves)
         self.getBishopMoves(row, col, moves, protectionMoves)
+
+    def displayNotation(self, validMoves: list[Move]) -> None:
+        lastMove = self.moveLog[self.moveIdx]
+        castle, movedPiece, captureFlag, endSquare, checkFlag, startRank, startFile, pawnPromotion = lastMove.getChessNotation()
+        rank = file = ''
+
+        if castle:
+            print(castle)
+            return
+
+        # check if another piece of same type could've moved to that square (not pawn or king)
+        if lastMove.pieceMoved[1] not in [PAWN, KING]:
+            foundSameFile = False
+            foundSameRank = False
+            foundSame = False
+
+            for move in validMoves:
+                if move != lastMove and move.pieceMoved == lastMove.pieceMoved and move.endRow == lastMove.endRow and move.endCol == lastMove.endCol:
+                    foundSame = True
+                    # there can be confusion in the notation, clear it up
+                    _, _, _, _, _, otherStartRank, otherStartFile, _ = move.getChessNotation()
+
+                    foundSameFile = otherStartFile == startFile or foundSameFile
+                    foundSameRank = otherStartRank == startRank or foundSameRank
+
+                    if foundSameRank and foundSameFile:
+                        break
+
+            if foundSame:
+                if foundSameFile and foundSameRank:
+                    file = startFile
+                    rank = startRank
+                elif foundSameFile:
+                    rank = startRank
+                elif foundSameRank:
+                    file = startFile
+                else:
+                    file = startFile
+
+        notation = movedPiece + file + rank + \
+            captureFlag + endSquare + pawnPromotion + checkFlag
+
+        properNotation = str(self.moveIdx + 1) + '. ' + notation
+        print(properNotation)
