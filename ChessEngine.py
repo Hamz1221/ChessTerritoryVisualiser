@@ -753,6 +753,8 @@ class GameState():
                     foundSameRank = otherStartRank == startRank or foundSameRank
 
                     if foundSameRank and foundSameFile:
+                        # Once there exists same piece type for both rank and file that could've made that move,
+                        # we now know we need to be extremely explicit which piece moved using both rank and file
                         break
 
             if foundSame:
@@ -761,8 +763,8 @@ class GameState():
                     rank = startRank
                 elif foundSameFile:
                     rank = startRank
-                elif foundSameRank:
-                    file = startFile
+                # elif foundSameRank:
+                #     file = startFile
                 else:
                     file = startFile
 
