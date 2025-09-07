@@ -734,7 +734,7 @@ class GameState():
         rank = file = ''
 
         if castle:
-            print(castle)
+            print(str(self.moveIdx + 1) + '. ' + castle)
             return
 
         # check if another piece of same type could've moved to that square (not pawn or king)
