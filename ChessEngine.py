@@ -728,7 +728,7 @@ class GameState():
         self.getRookMoves(row, col, moves, protectionMoves)
         self.getBishopMoves(row, col, moves, protectionMoves)
 
-    def displayNotation(self, validMoves: list[Move], lastMove: Move = None, display: bool = True) -> None:
+    def displayNotation(self, validMoves: list[Move], lastMove: Move = None, display: bool = True) -> str:
         lastMove = self.moveLog[self.moveIdx] if not lastMove else lastMove
         castle, movedPiece, captureFlag, endSquare, checkFlag, startRank, startFile, pawnPromotion = lastMove.getChessNotation()
         rank = file = ''
@@ -775,14 +775,16 @@ class GameState():
             print(properNotation)
         return notation
 
-    def convertNotationToValidMove(self, notation, validMoves: list[Move]) -> Move:
+    def convertNotationToValidMove(self, notation: str, validMoves: list[Move]) -> Move:
+        notations = []
         for move in validMoves:
             moveNotation = self.displayNotation(
                 validMoves, lastMove=move, display=False)
-            if notation == moveNotation:
-                print(moveNotation)
+            notations.append(moveNotation)
+            if notation.startswith(moveNotation):
                 return move
-
+        print(f"Possible moves:\n{notations}")
+        print(self.board)
         raise ValueError(
             f"Provided notation '{notation}' is not valid in current game state!")
 

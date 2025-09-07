@@ -120,7 +120,7 @@ def drawPieces(screen: p.Surface, board: list):
                     col * SQ_SIZE, row * SQ_SIZE, SQ_SIZE, SQ_SIZE))
 
 
-def main() -> None:
+def main(moves: list[ChessEngine.Move] = []) -> None:
     global font
     global gs
     p.init()
@@ -128,7 +128,7 @@ def main() -> None:
     screen = p.display.set_mode((WIDTH, HEIGHT))
     clock = p.time.Clock()
     screen.fill(p.Color("white"))
-    gs = ChessEngine.GameState()
+    gs = ChessEngine.GameState(moves)
     validMoves, protectionMoves = gs.getValidMoves()
     moveMade = False
     undoMove = False
@@ -206,7 +206,7 @@ def main() -> None:
 
                 # `command + r` for restart
                 elif e.key == p.K_r and (p.key.get_mods() & p.KMOD_META):
-                    gs = ChessEngine.GameState()
+                    gs = ChessEngine.GameState(moves)
                     validMoves, protectionMoves = gs.getValidMoves()
                     sqSelected = ()
                     playerClicks = []
@@ -325,4 +325,30 @@ def animateMove(moveLog: list[ChessEngine.Move], screen: p.Surface, board: list[
 
 
 if __name__ == "__main__":
-    main()
+    while (choice := input("Will you provide a move set? [y/n]: ")).lower() not in ["y", "n"]:
+        continue
+    moves: list[ChessEngine.Move] = []
+    if choice == "y":
+        print("Please enter the moves:")
+        contents = []
+        while True:
+            try:
+                line = input()
+                if line == "":
+                    break
+            except EOFError:
+                break
+            contents.append(line)
+        potentialMoves = ' '.join(contents)
+        potentialMoves = potentialMoves.split(' ')
+        potentialMoves = list(filter(lambda x: '.' not in x, potentialMoves))
+
+        # Check if moves is valid gameplay by converting to list of ChessEngine.Move
+        gs = ChessEngine.GameState()
+        for move in potentialMoves:
+            validMoves, _ = gs.getValidMoves()
+            validMove = gs.convertNotationToValidMove(move, validMoves)
+            gs.makeMove(validMove)
+            moves.append(validMove)
+
+    main(moves)
