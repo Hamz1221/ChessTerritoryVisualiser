@@ -728,14 +728,14 @@ class GameState():
         self.getRookMoves(row, col, moves, protectionMoves)
         self.getBishopMoves(row, col, moves, protectionMoves)
 
-    def displayNotation(self, validMoves: list[Move]) -> None:
-        lastMove = self.moveLog[self.moveIdx]
+    def displayNotation(self, validMoves: list[Move], lastMove: Move = None, display: bool = True) -> None:
+        lastMove = self.moveLog[self.moveIdx] if not lastMove else lastMove
         castle, movedPiece, captureFlag, endSquare, checkFlag, startRank, startFile, pawnPromotion = lastMove.getChessNotation()
         rank = file = ''
 
         if castle:
-            print(str(self.moveIdx + 1) + '. ' + castle)
-            return
+            print(str(self.moveIdx + 1) + '. ' + castle) if display else None
+            return castle
 
         # check if another piece of same type could've moved to that square (not pawn or king)
         if lastMove.pieceMoved[1] not in [PAWN, KING]:
@@ -770,6 +770,31 @@ class GameState():
 
         notation = movedPiece + file + rank + \
             captureFlag + endSquare + pawnPromotion + checkFlag
+        if display:
+            properNotation = str(self.moveIdx + 1) + '. ' + notation
+            print(properNotation)
+        return notation
 
-        properNotation = str(self.moveIdx + 1) + '. ' + notation
-        print(properNotation)
+    def convertNotationToValidMove(self, notation, validMoves: list[Move]) -> Move:
+        for move in validMoves:
+            moveNotation = self.displayNotation(
+                validMoves, lastMove=move, display=False)
+            if notation == moveNotation:
+                print(moveNotation)
+                return move
+
+        raise ValueError(
+            f"Provided notation '{notation}' is not valid in current game state!")
+
+
+def main() -> None:
+    opening = ["e4", "e5"]
+    gs = GameState()
+    for move in opening:
+        validMoves, _ = gs.getValidMoves()
+        validMove = gs.convertNotationToValidMove(move, validMoves)
+        gs.makeMove(validMove)
+
+
+if __name__ == "__main__":
+    main()
